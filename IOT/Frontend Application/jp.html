@@ -1,0 +1,1258 @@
+<html>
+
+<head>
+    <title>JP Learning - Application</title>
+    <!-- <script src="socket.io.js"></script> -->
+    <link rel="stylesheet" href="./fonts/themify-icons-font/themify-icons/themify-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.5.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script> 
+        let lightStatus = false;
+        let fanStatus = false;
+        let lightStatus1 = false;
+        //cập nhật các thành phần HTML
+        setEventsSensor = async (type, temperature, humidity, lightsensor,dustsensor, created) => {
+            const xs = document.getElementById("TempDiv");
+            const xs1 = document.getElementById("HumDiv");
+            const xs2 = document.getElementById("LightSeDiv");
+            const xs3 = document.getElementById("DustSeDiv");
+            if (temperature > 50)
+                xs.style.background = "linear-gradient(45deg, #d1bbbf, red)";
+            else {
+                xs.style.background = "linear-gradient(45deg, yellow, red)";
+            }
+            if (humidity > 50)
+                xs1.style.background = "linear-gradient(45deg, rgb(181,181,237), green)";
+            else {
+                xs1.style.background = "linear-gradient(45deg, white, blue )";
+            }
+            if (lightsensor > 500)
+                xs2.style.background = "linear-gradient(45deg, yellow , orange)";
+            else {
+                xs2.style.background = "linear-gradient(45deg, white, yellow)";
+            }
+            if(dustsensor > 70)
+                xs3.style.background = "linear-gradient(45deg, yellow , orange)";
+            else{
+                xs3.style.background = "linear-gradient(45deg, white, yellow)";
+            }
+            let el = document.getElementById('temp');
+            el.innerHTML = temperature + ' °C';
+            el = document.getElementById('temp-time');
+            el.innerHTML = 'Updated Time: ' + created;
+
+            let el1 = document.getElementById('humd');
+            el1.innerHTML = humidity + ' %';
+            el1 = document.getElementById('humd-time');
+            el1.innerHTML = 'Updated Time: ' + created;
+
+            let el2 = document.getElementById('lightSen');
+            el2.innerHTML = lightsensor + ' LUX';
+            el2 = document.getElementById('lightSen-time');
+            el2.innerHTML = 'Updated Time: ' + created;
+
+            let el3 = document.getElementById('dustSen');
+            el3.innerHTML = dustsensor + ' mg/m³';
+            el3 = document.getElementById('dustSen-time');
+            el3.innerHTML = 'Updated Time: ' + created;
+            
+        }
+        setEventsAction = async (type, value, created) => {
+            
+            if (type === 'Light') {
+                const checkbox = document.getElementById('switch')
+                const status = document.getElementById('statusL')
+
+                let el = document.getElementById('status-timeL');
+                el.innerHTML = 'Updated Time: ' + created;
+                if (value == '0') {
+                    document.getElementById('bulb').src = './bulb-off.png';
+
+                    console.log('Light OFF');
+                    // checkbox.checked = false;
+                    status.innerText = "OFF";
+
+                    lightStatus = false;
+                } else if (value == '1') {
+                    document.getElementById('bulb').src = './bulb-on.png';
+
+                    console.log('Light ON');
+                    // checkbox.checked = true;
+                    status.innerText = "ON";
+
+                    lightStatus = true;
+                }
+            }else if (type === 'Fan') {
+                const checkbox = document.getElementById('switch')
+                const status = document.getElementById('statusF')
+
+                let el = document.getElementById('status-timeF');
+                el.innerHTML = 'Updated Time: ' + created;
+                if (value == '0') {
+                    document.getElementById('fan').src = './fan-static2.png';
+
+                    console.log('Fan OFF');
+                    // checkbox.checked = false;
+                    status.innerText = "OFF";
+
+                    fanStatus = false;
+                } else if (value == '1') {
+                    document.getElementById('fan').src = './fan-animate2.gif';
+
+                    console.log('Fan ON');
+                    // checkbox.checked = true;
+                    status.innerText = "ON";
+
+                    fanStatus = true;
+                }
+            }else if (type === 'Light1') {
+                const checkbox = document.getElementById('switch')
+                const status = document.getElementById('statusL1')
+
+                let el = document.getElementById('status-timeL1');
+                el.innerHTML = 'Updated Time: ' + created;
+                if (value == '0') {
+                    document.getElementById('bulb1').src = './bulb-off.png';
+
+                    console.log('Light OFF');
+                    // checkbox.checked = false;
+                    status.innerText = "OFF";
+
+                    lightStatus1 = false;
+                } else if (value == '1') {
+                    document.getElementById('bulb1').src = './bulb-on.png';
+
+                    console.log('Light ON');
+                    // checkbox.checked = true;
+                    status.innerText = "ON";
+
+                    lightStatus1 = true;
+                }
+            }
+        }
+        //xử lý dữ liệu nhận được từ môi giới MQTT và cập nhật các thành phần HTML
+        //events là một mảng các sự kiện nhận được từ môi giới MQTT
+        handleData = async (events) => {
+            events.forEach(event => {
+                console.log('event:', event);
+                if (event.type === "Sensor"){
+                    let type = event.type;
+                    let temperature = event.temperature;
+                    let humidity = event.humidity;
+                    let lightsensor = event.lightsensor;
+                    let dustsensor = event.dustsensor;
+                    let created = event.created;
+
+                    console.log('type:', type)
+                    console.log('temperature:', temperature);
+                    console.log('humidity:', humidity);
+                    console.log('lightsensor:', lightsensor);
+                    console.log('dustsensor:', dustsensor);
+                    console.log('created:', created)
+
+                    setEventsSensor(type, temperature, humidity, lightsensor,dustsensor, created);
+                    humidityData.push(humidity);
+                    temperatureData.push(temperature);
+                    lightSensorData.push(lightsensor);
+                    if (humidityData.length >= 6)
+                        humidityData.shift();
+                    if (temperatureData.length >= 6)
+                        temperatureData.shift();
+                    if(lightSensorData.length >= 6)
+                        lightSensorData.shift();
+                    chart.update();
+                }else{
+                    let type = event.type;
+                    let value = event.value;
+                    let created = event.created;
+
+                    console.log('type:', type)
+                    console.log('value:', value)
+                    console.log('created:', created)
+
+                    setEventsAction(type, value, created);
+                }
+                
+            });
+        }
+
+        //Có chức năng lấy dữ liệu từ máy chủ Socket.io bằng cách sử dụng thư viện Axios. Dữ liệu được lấy dưới dạng JSON và được xử lý bởi hàm handleData()
+        getData = async () => {
+            
+            console.log('HTTP GET with Axios');
+            axios.get("http://localhost:8080/events")
+                .then(response => {
+                    console.log('response:', response);
+                    // access parsed JSON response data using response.data field
+                    let events = response.data;
+                    console.log('events:', events);
+                    handleData(events);
+                })
+                .catch(error => {
+                    if (error.response) {
+                        //get HTTP error code
+                        console.log(error.reponse.status)
+                    } else {
+                        console.log(error.message)
+                    }
+                })
+            axios.get("http://localhost:8080/actions")
+            .then(response => {
+                console.log('response:', response);
+                // access parsed JSON response data using response.data field
+                let actions = response.data;
+                console.log('actions:', actions);
+                handleData(actions);
+            })
+            .catch(error => {
+                if (error.response) {
+                    //get HTTP error code
+                    console.log(error.reponse.status)
+                } else {
+                    console.log(error.message)
+                }
+            })
+        }
+
+        // Get last events of all sensors
+        getData();
+        
+        // Socket.IO
+        let socket = io('ws://localhost:8080'); //tạo một kết nối với máy chủ Socket.IO đang chạy trên cổng 8080 của máy cục bộ
+        let el; //khai báo một biến el sẽ được sử dụng để lưu trữ tham chiếu đến phần tử HTML hiển thị thời gian máy chủ.
+
+        //lắng nghe sự kiện time từ máy chủ Socket.IO. Khi sự kiện time được nhận, trình xử lý sự kiện sẽ cập nhật phần tử HTML el để hiển thị thời gian máy chủ
+        socket.on('time', (timeString) => {
+            let el = document.getElementById('server-time');
+            el.innerHTML = 'Server time: ' + timeString;
+        });
+
+        //lắng nghe sự kiện JPLearning_SensorData từ máy chủ Socket.IO. 
+        //Khi sự kiện JPLearning_SensorData được nhận, trình xử lý sự kiện sẽ ghi ra dữ liệu cảm biến vào bảng điều khiển và gọi hàm setEvents() để cập nhật dữ liệu cảm biến trên trang web
+        socket.on('JPLearning_SensorData', (event) => {
+            console.log('Sensor event: ', event);
+
+            if(event.type === "Sensor"){
+                let type = event.type
+                let temperature = event.temperature;
+                let humidity = event.humidity;
+                let lightsensor = event.lightsensor;
+                let dustsensor = event.dustsensor;
+                let created = event.created;
+
+                console.log('type:', type)
+                console.log('temperature:', temperature);
+                console.log('humidity:', humidity);
+                console.log('lightsensor:', lightsensor);
+                console.log('created:', created)
+
+                setEventsSensor(type, temperature, humidity, lightsensor,dustsensor, created);
+            }else{
+                let type = event.type
+                let value = event.value
+                let created = event.created
+
+                console.log('type:', type)
+                console.log('value:', value)
+                console.log('created:', created)
+
+                setEventsAction(type, value, created);
+            }
+            
+        });
+
+        //sử dụng Socket.io để điều khiển thiết bị từ trình duyệt web: cụ thể đèn
+        changeStatusL = async () => {
+            console.log('changeStatus() called');
+            if (!lightStatus) {
+                console.log('Light ON');
+                //gửi một yêu cầu đến máy chủ Socket.io để bật đèn. Đối số của phương thức emit() là một đối tượng JSON chứa thông tin về thiết bị và lệnh cần thực hiện
+                socket.emit('JPLearning_CommandRequest', JSON.parse('{"device_id":"Device0001", "type":"Light", "value":1}'));
+            } else {
+                console.log('Light OFF');
+                socket.emit('JPLearning_CommandRequest', JSON.parse('{"device_id":"Device0001", "type":"Light", "value":0}'));
+            }
+        }
+        changeStatusF = async () => {
+            console.log('changeStatusF() called');
+            if (!fanStatus) {
+                console.log('Fan ON');
+                //gửi một yêu cầu đến máy chủ Socket.io để bật đèn. Đối số của phương thức emit() là một đối tượng JSON chứa thông tin về thiết bị và lệnh cần thực hiện
+                socket.emit('JPLearning_CommandRequest', JSON.parse('{"device_id":"Device0001", "type":"Fan", "value":1}'));
+            } else {
+                console.log('Fan OFF');
+                socket.emit('JPLearning_CommandRequest', JSON.parse('{"device_id":"Device0001", "type":"Fan", "value":0}'));
+            }
+        }
+        changeStatusL1 = async () => {
+            console.log('changeStatus() called');
+            if (!lightStatus1) {
+                console.log('Light ON');
+                //gửi một yêu cầu đến máy chủ Socket.io để bật đèn. Đối số của phương thức emit() là một đối tượng JSON chứa thông tin về thiết bị và lệnh cần thực hiện
+                socket.emit('JPLearning_CommandRequest', JSON.parse('{"device_id":"Device0001", "type":"Light1", "value":1}'));
+            } else {
+                console.log('Light OFF');
+                socket.emit('JPLearning_CommandRequest', JSON.parse('{"device_id":"Device0001", "type":"Light1", "value":0}'));
+            }
+        }
+    </script>
+    <style>
+        h1 {
+            margin-top: 1px;
+            color: #5766ae;
+            font-size: 25px;
+            font-weight: 900;
+        }
+
+        /* toggle in label designing */
+
+        .toggle {
+            position: relative;
+            display: inline-block;
+            width: 100px;
+            height: 52px;
+            background-color: #ccc;
+            border-radius: 30px;
+            border: 2px solid #5766ae;
+        }
+
+        /* After slide changes */
+
+        .toggle:after {
+            content: '';
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: #5766ae;
+            top: 1px;
+            left: 1px;
+            transition: all 0.5s;
+        }
+
+        /* Toggle text */
+
+        p {
+            font-family: Arial, Helvetica, sans-serif;
+            font-weight: bold;
+            font-size: 15px;
+        }
+
+        /* Checkbox checked effect */
+
+        .checkbox:checked+.toggle::after {
+            left: 49px;
+        }
+
+        /* Checkbox checked toggle label bg color */
+
+        .checkbox:checked+.toggle {
+            background-color: #00afd3;
+        }
+
+        /* Checkbox vanished */
+
+        .checkbox {
+            display: none;
+        }
+
+        .div {
+            display: block;
+            height: 15%;
+            width: 15%;
+            text-align: center;
+            margin: 20px auto;
+            background-color: #00afd3;
+            box-shadow: 1px 1px 7px 5px #5766ae;
+        }
+        #TempDiv{
+            display: block;
+            height: 15%;
+            width: 20%;
+            text-align: center;
+            margin: 20px auto;
+            background-color: #00afd3;
+            box-shadow: 1px 1px 7px 5px #5766ae;
+        }
+        #HumDiv{
+            display: block;
+            height: 15%;
+            width: 20%;
+            text-align: center;
+            margin: 20px auto;
+            background-color: #00afd3;
+            box-shadow: 1px 1px 7px 5px #5766ae;
+        }
+        #LightSeDiv{
+            display: block;
+            height: 15%;
+            width: 20%;
+            text-align: center;
+            margin: 20px auto;
+            background-color: #00afd3;
+            box-shadow: 1px 1px 7px 5px #5766ae;
+        }
+        #DustSeDiv{
+            display: block;
+            height: 15%;
+            width: 20%;
+            text-align: center;
+            margin: 20px auto;
+            background-color: #00afd3;
+            box-shadow: 1px 1px 7px 5px #5766ae;
+        }
+        img {
+            margin: -10 auto;
+        }
+
+        .heading1 {
+            color: #00afd3;
+            font-family: Arial, Helvetica, sans-serif;
+            font-weight: bold;
+            margin-bottom: -10;
+        }
+
+        .heading2 {
+            color: #5766ae;
+            font-family: Arial, Helvetica, sans-serif;
+            font-weight: bold;
+            margin-bottom: -10;
+        }
+        
+        .container-2{
+            margin-top: 2px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 10px;
+            margin: 10px;
+        }
+        .item-1{
+            flex-basis: 45%; 
+            /* height: 250px; */
+            background-color: white;
+            padding: 2px;
+            border: 2px solid rgb(224, 206, 206);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .item-2{
+            flex-basis: 45%;
+            /* width: 800px; */
+            background-color: white;
+            padding: 5px;
+            border: 2px solid rgb(224, 206, 206);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .item-3 div{
+            flex-basis: 10%; 
+
+            background-color: white;
+            padding: 2px;
+            border: 2px solid rgb(224, 206, 206);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2)
+
+        }
+        #dashboard{
+            /* display: none; */
+        }
+
+        #profile{
+            
+            display: none;
+            flex-direction: column;
+            /* justify-content: center; */
+            align-items: center;
+            
+        }
+
+        #action{
+            display: none;
+            /* display: flex; */
+            justify-content: center;
+            margin-left: 400px;
+        }
+
+        #action table{
+            margin-top: 20px;
+            width: 900px;
+        }
+
+        #action table, td{
+            border: 1px solid black;
+        }
+
+        #action td{
+            padding: 10px;
+        }
+        #action .pagination{
+            margin-top: 20px;
+            margin-left: 750px;
+        }
+        #sensor-data{
+            display: none;
+            /* display: flex; */
+            justify-content: center;
+            margin-left: 400px;
+        }
+
+        #sensor-data table, td{
+            border: 1px solid black;
+        }
+
+        #sensor-data table{
+            text-align: center;
+            margin-top: 20px;
+            width: 900px;
+        }
+
+        #sensor-data td{
+            padding: 10px;
+        }
+
+        #sensor-data .pagination{
+            margin-top: 20px;
+            margin-left: 750px;
+        }
+        #profile .image{
+            margin-top: 20px;
+            width: 300px;
+            height: auto;
+        }
+
+        #profile .image img{
+            width: 100%;
+            height: auto;
+        }
+
+        #profile .info{
+            margin-top: 20px;
+            padding: 10px;
+            border: black solid 1px;
+        }
+        #header{
+            height: 46.5px;
+            background: rgb(107, 183, 234);
+            position: relative;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1;
+        }
+
+        #header .menu-btn{
+            
+            position: absolute;
+            top:0;
+            left: 0;
+            padding: 0 21px;
+            /* float: left; */
+            /* display: inline-block; */
+            /* height: 46.5px; */
+            background-color: green;
+        }
+
+        #header .menu-btn:hover{
+            background-color: gray;
+            cursor: pointer;
+        }
+
+
+        #header .menu-icon{
+            color: white;
+            font-size: 20px;
+            line-height: 46.5px;
+        }
+
+        #header .sidebar{
+            display: none;
+            background-color: rgb(132, 208, 217);
+            width: 160px;
+            position: absolute;
+            top: 100%;
+            /* background-color: white; */
+            list-style-type: none;
+            margin-top: 0;
+            left: 0;
+            text-align: left;
+            padding-left: 0;
+        }
+
+        #header #menu:hover .sidebar{
+            display: block;
+        }
+
+        #header .sidebar li{
+            color: white;
+            line-height: 30px;
+            padding-top: 10px;
+            padding-bottom: 10px;
+            padding-left: 10px;
+
+        }
+
+        #header .sidebar li:hover{
+            background-color: gray;
+            cursor: pointer;
+        }
+
+/* #header img{
+    float: right;
+} */
+
+    </style>
+</head>
+
+<body>
+    <div id="header">
+        <div id="menu" class="menu-btn">
+            <i class="menu-icon ti-menu"></i>
+            <ul class="sidebar">
+                <li>Dashboard</li>
+                <li>Profile</li>
+                <li>Sensor Data</li>
+                <li>Action</li>
+            </ul>
+        </div>
+    </div>
+    <div id="dashboard">
+        <p id="server-time">
+        </p>
+
+        <div style="display: flex; margin-bottom: 2px;">
+            <div id="TempDiv">
+                <h1>Temperature</h1>
+                <img src="./temp.png" width="80" height="80">
+                <p id="temp" style="font-size: 30"></p>
+                <p id="temp-time"></p>
+            </div>
+        
+            <div id="HumDiv">
+                <h1>Humidity</h1>
+                <img src="./hum.png" width="80" height="80">
+                <p id="humd" style="font-size: 30"></p>
+                <p id="humd-time"></p>
+            </div>
+        
+            <div id="LightSeDiv">
+                <h1>LightSensor</h1>
+                <img src="./light.jpg" width="80" height="80">
+                <p id="lightSen" style="font-size: 30"></p>
+                <p id="lightSen-time"></p>
+            </div>
+            <div id="DustSeDiv">
+                <h1>DustSensor</h1>
+                <img src="./hum.png" width="80" height="80">
+                <p id="dustSen" style="font-size: 30"></p>
+                <p id="dustSen-time"></p>
+            </div>
+        </div>
+    
+        <div class="container-2">
+            <div class="item-1">
+                <canvas id="chartCanvas1">
+                      
+                </canvas>
+            </div>
+            <div class="item-2">
+                <canvas id="chartCanvas">
+                      
+                </canvas>
+            </div>
+            <div class="item-3">
+                <div class="div" style="background-color: white; width: 400px;" >
+                    <h1 style="margin-bottom: 2px;">Light Status</h1>
+            
+                    <img id="bulb" src="./bulb-off.png" onclick="changeStatusL()" width="80" height="80">
+            
+                    <!-- <input type="checkbox" id="switch" class="checkbox" onclick="changeStatus();" />
+                    <label for="switch" class="toggle">
+                    </label> -->
+                    <p id="statusL" style="font-size: 30">OFF</p>
+                    <p id="status-timeL"></p>
+                </div>
+                <div class="div" style="background-color: white; width: 400px;">
+                    <h1 style="margin-bottom: 2px;">Light1 Status</h1>
+            
+                    <img id="bulb1" src="./bulb-off.png" onclick="changeStatusL1()" width="80" height="80">
+            
+                    <!-- <input type="checkbox" id="switch" class="checkbox" onclick="changeStatus();" />
+                    <label for="switch" class="toggle">
+                    </label>  -->
+                    <p id="statusL1" style="font-size: 30">OFF</p>
+                    <p id="status-timeL1"></p>
+                </div>  
+                <div class="div" style="background-color: white; width: 400px;">
+                    <h1 style="margin-bottom: 2px;">Fan Status</h1>
+            
+                    <img id="fan" src="./fan-static2.png" onclick="changeStatusF()" width="80" height="80">
+            
+                    <!-- <input type="checkbox" id="switch" class="checkbox" onclick="changeStatus();" />
+                    <label for="switch" class="toggle">
+                    </label>  -->
+                    <p id="statusF" style="font-size: 30">OFF</p>
+                    <p id="status-timeF"></p>
+                </div>  
+                
+            </div>
+        </div>
+    </div>
+    <div id="profile">
+        <div class="image">
+            <img src="img/anhdaidien.jpg" alt="ảnh profile">
+        </div>
+        <div class="info">
+            <h2>Họ tên: Vu Ngoc Phuong</h2>  
+            <h2>Lớp: D20HTTT06</h2>
+            <h2>MÃ SV: B20DCAT142</h2>
+        </div>
+      </div>
+      <div id="sensor-data">
+        <h1 style="margin-bottom: 5px;">Danh sách sự kiện</h1><br>
+        <label for="createdFilterStart" style="font-size: 25px;"> Từ ngày:</label>
+        <input type="datetime-local" id="createdFilterStart" placeholder="Từ ngày" style="height: 30px; margin-right: 40px;">
+
+        <label for="createdFilterEnd" style="font-size: 25px;"> Đến ngày:</label>
+        <input type="datetime-local" id="createdFilterEnd" placeholder="Đến ngày" style="height: 30px;"><br>
+
+        <label for="temperatureFilter" style="font-size: 25px;"> Nhiệt độ:</label>
+        <input type="number" id="temperatureFilter" placeholder="Nhiệt độ" style="height: 30px; margin-right: 40px;">
+
+        <label for="humidityFilter" style="font-size: 25px;"> Độ ẩm:</label>
+        <input type="number" id="humidityFilter" placeholder="Độ ẩm" style="height: 30px; margin-right: 40px;">
+
+        <label for="lightsensorFilter" style="font-size: 25px;"> Cảm biến ánh sáng:</label>
+        <input type="number" id="lightsensorFilter" placeholder="Cảm biến ánh sáng" style="height: 30px; margin-right: 40px;">
+        <button id="filterButton" style="width: 80px; height: 30px; margin-right: 10px;">Lọc</button>
+        <button id="resetButton" style="width: 80px; height: 30px; margin-right: 10px;">Reset</button> <!-- Nút Reset -->
+        <!-- <button id="pauseButton" style="width: 80px; height: 30px;">Pause</button> -->
+        <table>
+            <thead>
+                <tr>
+                    <td>ID</td>
+                    <!-- <td>Device_ID</td> -->
+                    <td>Temperature</td>
+                    <td>Humidity</td>
+                    <td>LightSensor</td>
+                    <td>Created</td>
+                </tr>
+            </thead>
+            <tbody id="events">
+            </tbody>
+        </table>
+        <div class="pagination">
+            <input type="number" id="goToPage" style="width: 80px; height: 30px; margin-right: 10px;">
+            <button id="prev">Previous</button>
+            <span id="currentPage">1</span>
+            <button id="next">Next</button>
+        </div>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+        
+        <script>
+            const url = "http://localhost:8080/eventsall"
+            $(document).ready(function() {
+                let originalData = []; 
+                let filteredData = []; 
+                let pages = []; 
+                let currentPage = 1; 
+    
+                $.getJSON("http://localhost:8080/eventsall", function(data) {
+                    originalData = data;
+                    filteredData = originalData;
+                    pages = splitDataIntoPages(filteredData, 15);
+                    renderCurrentPage();
+                    $("#goToPage").change(function() {
+                        const page = $(this).val();
+                        if (page > 0 && page <= pages.length) {
+                            currentPage = page;
+                            renderCurrentPage();
+                        }
+                    });
+                   
+                    $("#prev").click(function() {
+                        if (currentPage > 1) {
+                            currentPage--;
+                            $("#goToPage").val(currentPage);
+                            renderCurrentPage();
+                        
+                        }
+                    });
+    
+                   
+                    $("#next").click(function() {
+                        if (currentPage < pages.length) {
+                            currentPage++;
+                            $("#goToPage").val(currentPage);
+                            renderCurrentPage();
+                           
+                        }
+                    });
+                    
+                    
+                    $("#filterButton").click(function() {
+                        const createdFilterStart = $("#createdFilterStart").val();
+                        const createdFilterEnd = $("#createdFilterEnd").val();
+                        const temperature = $("#temperatureFilter").val();
+                        const humidity = $("#humidityFilter").val();
+                        const lightsensor = $("#lightsensorFilter").val();
+                        
+                        if (temperature !== "") {
+                            filteredData = filteredData.filter(event => {
+                                
+                                return temperature == event.temperature;
+                            });
+                        }
+                        if (humidity !== "") {
+                            filteredData = filteredData.filter(event => {
+                                
+                                return humidity == event.humidity;
+                            });
+                        }
+                        if (lightsensor !== "") {
+                            filteredData = filteredData.filter(event => {
+                                
+                                return lightsensor == event.lightsensor;
+                            });
+                        }
+
+                        
+
+                        if(createdFilterStart != "" && createdFilterEnd!=""){
+                            filteredData = filteredData.filter(event => {
+                            const createdDateStart = new Date(createdFilterStart+"Z");
+                            const createdDateEnd = new Date(createdFilterEnd+"Z");
+                            const createdDate = new Date(event.created);
+                            return createdDate >= createdDateStart && createdDate <= createdDateEnd;
+                        });
+                        }
+                        
+                        pages = splitDataIntoPages(filteredData, 15);
+                        currentPage = 1;
+                        renderCurrentPage();
+                    });
+                    
+                    $("#resetButton").click(function() {
+                        $("#createdFilterStart").val("");
+                        $("#createdFilterEnd").val("");
+                        
+                        fetchDataFromAPI().then(function(newData) {
+                            originalData = newData;
+                            filteredData = originalData;
+                            pages = splitDataIntoPages(filteredData, 15);
+                            currentPage = 1;
+                            renderCurrentPage();
+                        });
+                        
+                    });
+                });
+                function renderCurrentPage() {
+                    
+                    $("#events").empty();
+                    $.each(pages[currentPage - 1], function(index, event) {
+                        $("#events").append(
+                            "<tr>" +
+                            "<td>" + event.stt + "</td>" +
+                            "<td>" + event.temperature + "</td>" +
+                            "<td>" + event.humidity + "</td>" +
+                            "<td>" + event.lightsensor + "</td>" +
+                            "<td>" + event.created + "</td>" +
+                            "</tr>"
+                        );
+                    });
+                    $("#currentPage").text(currentPage+"/"+pages.length);
+                }
+    
+                function splitDataIntoPages(data, pageSize) {
+                    let pages = [];
+                    for (let i = 0; i < data.length; i += pageSize) {
+                        let page = data.slice(i, i + pageSize);
+                        pages.push(page);
+                    }
+                    return pages;
+                }
+            });
+            function fetchDataFromAPI() {
+                return new Promise(function(resolve, reject) {
+                    // Gọi API để lấy dữ liệu mới
+                    fetch(url)
+                        .then(function(response) {
+                            return response.json();
+                        })
+                        .then(function(data) {
+                            resolve(data);
+                        })
+                        .catch(function(error) {
+                            reject(error);
+                        });
+                });
+            }
+
+        </script>
+    </div>
+      <div id="action">
+        <h1 style="margin-bottom: 5px;">Danh sách sự kiện</h1><br>
+        <input type="datetime-local" id="createdFilterStart_lf" placeholder="Từ ngày">
+        <input type="datetime-local" id="createdFilterEnd_lf" placeholder="Đến ngày">
+        <button id="filterButton_lf">Lọc</button>
+        <button id="resetButton_lf">Reset</button> <!-- Nút Reset -->
+        <table>
+            <thead>
+            <tr>
+                <td>ID</td>
+                <!-- <td>Device_ID</td> -->
+                <td>Type</td>
+                <td>Value</td>
+                <td>Created</td>
+            </tr>
+            </thead>
+            <tbody id="actions">
+            </tbody>
+        </table>
+        <div class="pagination">
+            <button id="prev_lf">Previous</button>
+            <span id="currentPage_lf">1</span>
+            <button id="next_lf">Next</button>
+        </div>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+        <script>
+                const urla = "http://localhost:8080/actionsall"
+                $(document).ready(function() {
+                let originalData = []; // Dữ liệu gốc
+                let filteredData = []; // Dữ liệu đã lọc
+                let pages = []; // Trang dữ liệu
+                let currentPage = 1; // Trang hiện tại
+    
+                // Lấy tất cả dữ liệu sự kiện
+                $.getJSON("http://localhost:8080/actionsall", function(data) {
+                    originalData = data;
+                    filteredData = originalData;
+                    pages = splitDataIntoPages(filteredData, 15);
+                    renderCurrentPage();
+    
+                    // Xử lý sự kiện click nút "Previous"
+                    $("#prev_lf").click(function() {
+                        if (currentPage > 1) {
+                            currentPage--;
+                            renderCurrentPage();
+                            $("#currentPage_lf").text(currentPage+"/"+pages.length);
+                        }
+                    });
+    
+                    // Xử lý sự kiện click nút "Next"
+                    $("#next_lf").click(function() {
+                        if (currentPage < pages.length) {
+                            currentPage++;
+                            renderCurrentPage();
+                            $("#currentPage_lf").text(currentPage+"/"+pages.length);
+                        }
+                    });
+    
+                    // Xử lý sự kiện click nút "Lọc"
+                    $("#filterButton_lf").click(function() {
+                        const createdFilterStart = $("#createdFilterStart_lf").val();
+                        const createdFilterEnd = $("#createdFilterEnd_lf").val();
+    
+                        const createdDateStart = new Date(createdFilterStart+"Z");
+                        const createdDateEnd = new Date(createdFilterEnd+"Z");
+    
+                        filteredData = originalData.filter(event => {
+                            const createdDate = new Date(event.created);
+                            return createdDate >= createdDateStart && createdDate <= createdDateEnd;
+                        });
+    
+                        pages = splitDataIntoPages(filteredData, 15);
+                        currentPage = 1;
+                        renderCurrentPage();
+                    });
+    
+                    // Xử lý sự kiện click nút "Đặt lại"
+                    $("#resetButton_lf").click(function() {
+                        $("#createdFilterStart_lf").val("");
+                        $("#createdFilterEnd_lf").val("");
+                        // filteredData = originalData;
+                        // pages = splitDataIntoPages(filteredData, 15);
+                        // currentPage = 1;
+                        // renderCurrentPage();
+                        
+                        fetchDataFromAPI().then(function(newData) {
+                            originalData = newData;
+                            filteredData = originalData;
+                            pages = splitDataIntoPages(filteredData, 15);
+                            currentPage = 1;
+                            renderCurrentPage();
+                        });
+                    });
+                });
+    
+                // Hiển thị trang hiện tại
+                function formatCreated(created) {
+                        const formattedDate = new Date(created);
+
+                        const year = formattedDate.getFullYear();
+                        const month = formattedDate.getMonth() + 1;
+                        const day = formattedDate.getDate();
+                        const hours = formattedDate.getHours();
+                        const minutes = formattedDate.getMinutes();
+
+                        return `${year}/${month.toString().padStart(2, "0")}/${day.toString().padStart(2, "0")} ${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+                }
+                function renderCurrentPage() {
+                    $("#actions").empty();
+                    $.each(pages[currentPage - 1], function(index, event) {
+                        var valueText = event.value === 1 ? "ON" : "OFF";
+                        $("#actions").append(
+                            "<tr>" +
+                            "<td>" + event.stt + "</td>" +
+                            "<td>" + event.type + "</td>" +
+                            "<td>" + valueText + "</td>" +
+                            "<td>" + event.created + "</td>" +
+                            "</tr>"
+                        );
+                    });
+                    $("#currentPage_lf").text(currentPage+"/"+pages.length);
+                }
+    
+                // Chia dữ liệu thành các trang
+                function splitDataIntoPages(data, pageSize) {
+                    let pages = [];
+                    for (let i = 0; i < data.length; i += pageSize) {
+                        let page = data.slice(i, i + pageSize);
+                        pages.push(page);
+                    }
+                    return pages;
+                }
+                function fetchDataFromAPI() {
+                return new Promise(function(resolve, reject) {
+                    // Gọi API để lấy dữ liệu mới
+                    fetch(urla)
+                        .then(function(response) {
+                            return response.json();
+                        })
+                        .then(function(data) {
+                            resolve(data);
+                        })
+                        .catch(function(error) {
+                            reject(error);
+                        });
+                });
+            }
+                
+            });
+        </script>
+      </div>
+</body>
+<script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const sidebarItem = document.querySelectorAll(".sidebar li");
+            const dashboard = document.getElementById("dashboard");
+            const profile = document.getElementById("profile");
+            const sensor = document.getElementById("sensor-data");
+            const action = document.getElementById("action");
+        
+        sidebarItem.forEach(function (item) {
+            item.addEventListener("click", function () {
+                dashboard.style.display = "none";
+                profile.style.display = "none";
+                sensor.style.display = "none";
+                action.style.display = "none";
+
+                if (item.textContent === "Dashboard") {
+                    dashboard.style.display = "block";
+                } else if (item.textContent === "Profile") {
+                    profile.style.display = "flex";
+                } else if (item.textContent === "Sensor Data") {
+                    sensor.style.display = "block";
+                
+                }else if (item.textContent === "Action"){
+                    action.style.display = "block";
+                }
+            })
+        })
+
+    });
+        const ctx = document.getElementById('chartCanvas');
+        const ctx1 = document.getElementById('chartCanvas1');
+        const humidityData = [];
+        const lightSensorData = [];
+        const temperatureData = [];
+        const dustSensorData = [];
+        const timeData = [];
+        const chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: timeData,//['Thời điểm 1', 'Thời điểm 2', 'Thời điểm 3', 'Thời điểm 4', 'Thời điểm 5', 'Thời điểm 6'],
+            datasets: [
+                {
+                    label: 'Độ ẩm',
+                    data: humidityData,
+                    borderColor: 'blue',
+                    fill: false,
+                    yAxisID: 'y1', // Trục y chính
+                    lineTension: 0.4
+                },
+                {
+                    label: 'Ánh sáng',
+                    data: lightSensorData,
+                    borderColor: 'orange',
+                    fill: false,
+                    yAxisID: 'y1', // Trục y phụ
+                    lineTension: 0.4
+                },
+                {
+                    label: 'Nhiệt độ',
+                    data: temperatureData,
+                    borderColor: 'red',
+                    fill: false,
+                    yAxisID: 'y1', // Trục y chính
+                    lineTension: 0.4
+                }
+                
+            ]
+        },
+        
+        options: {
+            responsive: true,
+            scales: {
+                
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Nhiệt độ-Độ ẩm-Ánh sáng'
+                    },
+                    
+                },
+                
+                x: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: 'Thời gian'
+                    }
+                }
+            },
+            plugins: {
+                cubicinterpolation: {
+                    tension: 0.4 // Điều chỉnh độ cong của đường
+                }
+            }
+        }
+        });
+        function updateArrayAndChart(temp,humd,light) {
+                let newData = temp;
+                let newData1 = humd;
+                let newData2 = light;
+                //let newData2 = Math.floor(Math.random() * 1000) + 1;
+                if (humidityData.length >= 7)
+                    humidityData.shift();
+                humidityData.push(newData1);
+                if (temperatureData.length >= 7)
+                    temperatureData.shift();
+                temperatureData.push(newData);
+                if(lightSensorData.length >= 7)
+                    lightSensorData.shift();
+                lightSensorData.push(newData2);
+                chart.update();
+            }
+            const chart1 = new Chart(ctx1, {
+            type: 'line',
+            data: {
+                labels: timeData,//['Thời điểm 1', 'Thời điểm 2', 'Thời điểm 3', 'Thời điểm 4', 'Thời điểm 5', 'Thời điểm 6'],
+                datasets: [
+                    {
+                        label: 'Độ bụi',
+                        data: dustSensorData,
+                        borderColor: 'blue',
+                        fill: false,
+                        yAxisID: 'y1', // Trục y chính
+                        lineTension: 0.4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Độ bụi'
+                        }
+                    },
+                    x: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: 'Thời gian'
+                        }
+                    }
+                },
+                plugins: {
+                    cubicinterpolation: {
+                        tension: 0.4 // Điều chỉnh độ cong của đường
+                    }
+                }
+            }
+            });
+            function updateArrayAndChart1(dust) {
+                let newData = dust;
+                //let newData2 = Math.floor(Math.random() * 1000) + 1;
+                if (dustSensorData.length >= 7)
+                    dustSensorData.shift();
+                dustSensorData.push(newData1);
+                
+                chart1.update();
+            }
+            let ck = 1;
+            socket.on('JPLearning_SensorData', (event) => {
+                console.log('Sensor event: ', event);
+                if(event.type === "Sensor"){
+                    let type = event.type;
+                    let temperature = event.temperature;
+                    let humidity = event.humidity;
+                    let lightsensor = event.lightsensor;
+                    let dustsensor = event.dustsensor;
+                    let created = event.created;
+                    
+                    console.log('type:', type)
+                    console.log('temperature:', temperature);
+                    console.log('humidity:', humidity);
+                    console.log('lightsensor:', lightsensor);
+                    console.log('dustsensor:', dustsensor);
+                    console.log('created:', created)
+
+                    humidityData.push(humidity);
+                    temperatureData.push(temperature);
+                    lightSensorData.push(lightsensor);
+                    dustSensorData.push(dustsensor);
+                    timeData.push(created);
+                    if (humidityData.length >= 7)
+                        humidityData.shift();
+                    if (temperatureData.length >= 7)
+                        temperatureData.shift();
+                    if(lightSensorData.length >= 7)
+                        lightSensorData.shift();
+                    if(dustSensorData.length >= 7)
+                        dustSensorData.shift();
+                    if(timeData.length >= 7){
+                        timeData.shift();
+                    }
+                     chart.update();
+                    chart1.update();
+                }
+                
+                
+            
+               
+                
+            
+            });
+   
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+</html>
